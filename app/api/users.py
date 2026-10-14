@@ -20,4 +20,4 @@ async def register_user(
     user_registration: UserRegistrationRequest,
     users_service: UserService = Depends(get_user_service),
 ) -> UserResponse:
-    return await get_user_service().register_user(user_registration)
+    return await users_service.register_user(user_registration)

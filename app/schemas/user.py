@@ -2,7 +2,6 @@ from pydantic import (
     BaseModel,
     StringConstraints,
     EmailStr,
-    SecretStr,
     Field,
     ConfigDict,
 )
@@ -14,7 +13,7 @@ NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_len
 class UserRegistrationRequestInner(BaseModel):
     email: EmailStr
     username: NonEmptyString
-    password: SecretStr = Field(..., min_length=8)
+    password: Annotated[str, Field(str_strip=True, min_length=8)]
 
 
 class UserRegistrationRequest(BaseModel):
