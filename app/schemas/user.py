@@ -32,3 +32,12 @@ class UserResponseInner(BaseModel):
 class UserResponse(BaseModel):
     user: UserResponseInner
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserLoginRequestInner(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserLoginRequest(BaseModel):
+    user: UserLoginRequestInner
