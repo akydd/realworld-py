@@ -1,4 +1,3 @@
-import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.users import User
@@ -10,14 +9,13 @@ from app.schemas.user import (
 )
 from pwdlib import PasswordHash
 from app.services.custom_errors import AuthenticationException
-
-ALGORITHM = "HS256"
+from app.services.auth import AuthService
 
 
 class UserService:
-    def __init__(self, db: AsyncSession, jwt_secret: str):
+    def __init__(self, db: AsyncSession, auth_service: AuthService):
         self.db = db
-        self.jwt_secret = jwt_secret
+        self.auth_service = auth_service
         self.password_hash = PasswordHash.recommended()
 
     async def register_user(
@@ -34,19 +32,9 @@ class UserService:
         await self.db.refresh(new_user)
 
         # create token
-        jwt_token = jwt.encode(
-            {"id": new_user.id}, self.jwt_secret, algorithm=ALGORITHM
-        )
+        jwt_token = self.auth_service.create_jwt_token(new_user.id)
 
-        return UserResponse(
-            user=UserResponseInner(
-                email=new_user.email,
-                username=new_user.username,
-                token=jwt_token,
-                image=new_user.image,
-                bio=new_user.bio,
-            )
-        )
+        return self._db_user_to_model(new_user, jwt_token)
 
     async def login_user(self, user_login: UserLoginRequest) -> UserResponse:
         query = select(User).where(User.email == user_login.user.email)
@@ -60,14 +48,26 @@ class UserService:
             raise AuthenticationException()
 
         # create token
-        jwt_token = jwt.encode({"id": user.id}, self.jwt_secret, algorithm=ALGORITHM)
+        jwt_token = self.auth_service.create_jwt_token(user.id)
 
+        return self._db_user_to_model(user, jwt_token)
+
+    def _db_user_to_model(self, db_user: User, token: str) -> UserResponse:
         return UserResponse(
             user=UserResponseInner(
-                email=user.email,
-                username=user.username,
-                token=jwt_token,
-                image=user.image,
-                bio=user.bio,
+                email=db_user.email,
+                username=db_user.username,
+                token=token,
+                image=db_user.image,
+                bio=db_user.bio,
             )
         )
+
+    async def get_user(self, user_id: str) -> UserResponse:
+        user: User = await self.db.get_one(User, user_id)
+
+        if not user:
+            raise AuthenticationException
+
+        token = self.auth_service.create_jwt_token(user.id)
+        return self._db_user_to_model(user, token)

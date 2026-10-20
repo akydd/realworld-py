@@ -1,18 +1,25 @@
 from fastapi import APIRouter, Depends
 from app.schemas.user import UserRegistrationRequest, UserResponse, UserLoginRequest
-from app.core.config import Settings, get_settings
+
 from app.db.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.user import UserService
+from app.services.auth import AuthService
+from app.core.config import Settings, get_settings
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
+def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
+    return AuthService(jwt_secret=settings.jwt_secret)
+
+
 def get_user_service(
-    settings: Settings = Depends(get_settings), db: AsyncSession = Depends(get_db)
+    auth_service: AuthService = Depends(get_auth_service),
+    db: AsyncSession = Depends(get_db),
 ) -> UserService:
-    return UserService(db=db, jwt_secret=settings.jwt_secret)
+    return UserService(db=db, auth_service=auth_service)
 
 
 @router.post("")
